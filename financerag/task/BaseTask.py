@@ -30,7 +30,7 @@ class BaseTask:
             retrieved_resulst (Dict[str, Dict[str, float]]) : A dictionary contains query_id with its top-k most relevant corpus id and the corresponding score
         """
         assert self.queries is not None and self.corpus is not None, "Corpus and query is missing! You must call 'load' function first before retrieving result for your quuery"
-        self.retrieved_results = retriever.retrieve(queries = self.queries, top_k = top_k)
+        self.retrieved_results = retriever.retrieve(queries = self.queries, corpus = self.corpus, top_k = top_k)
         return self.retrieved_results
     
 

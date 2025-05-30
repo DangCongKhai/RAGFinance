@@ -10,6 +10,7 @@ class Retrieval(ABC):
     def retrieve(self,
             queries : Dict[str, str],             
             top_k : int,
+            **kwargs
     ):
         """An abstract method that is used to retrieve the top_k-most relevant corpus to the given query.
         The returned argument is retrieved results which is a dictionary that has query as key and a dictionary of 
