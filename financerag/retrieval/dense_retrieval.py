@@ -1,5 +1,5 @@
 import os
-from ..common import Retrieval
+from ..common import Retrieval, timer
 from typing import Dict, List, Tuple
 from tqdm import tqdm
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -7,6 +7,8 @@ from langchain_text_splitters.base import TextSplitter
 from langchain_core.documents import Document
 from langchain_core.vectorstores.base import VectorStoreRetriever
 from langchain_community.vectorstores import FAISS
+
+
 
 
 class DenseRetrieval(Retrieval):
@@ -20,6 +22,7 @@ class DenseRetrieval(Retrieval):
         self.vector_store = vector_store
         self.dataset_name = dataset_name
     
+    @timer
     def retrieve(self,
             queries : Dict[str, str],    
             top_k : int = 10,
@@ -49,12 +52,11 @@ class DenseRetrieval(Retrieval):
             # Here are things to consider:
             # 1. Averaging all top_k document score and sort it according to that score
             # 2. Rerank document
-            print(f"Len key of docs dict :{len(docs_dict)}")
             retrieved_results[query_id] = docs_dict
         
         return retrieved_results
         
-
+    @timer
     def load_corpus_for_searching_without_splitting(self, 
                                 corpus : Dict[str, str],
                                 saved_index : bool = False):
@@ -69,6 +71,7 @@ class DenseRetrieval(Retrieval):
         
 
         corpus_documents = []
+        
         for id, text in tqdm(corpus.items(), desc='Loading document'):
             corpus_documents.append(Document(page_content = text, metadata = {'dataset_name' :  self.dataset_name, 'id' : id}))
         self.vector_store.add_documents(corpus_documents)
@@ -89,7 +92,7 @@ class DenseRetrieval(Retrieval):
         else:
             print(f"You must use FAISS as vector database in order ot use this function!")
     
-    
+    @timer
     def load_corpus_with_splitting(self,
                                    text_splitter : TextSplitter,
                                    corpus : Dict[str, str],

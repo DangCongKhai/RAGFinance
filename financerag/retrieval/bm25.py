@@ -1,10 +1,11 @@
 from tqdm import tqdm 
 from typing import Dict, List, Tuple
-from ..common import Retrieval
+from ..common import Retrieval, timer
 import re
 from joblib import Parallel, delayed
 import numpy as np
 import os
+import nltk
 from nltk.tokenize import word_tokenize
 
 PATTERN = r"([a-zA-Z]+|\d{4})"
@@ -117,7 +118,7 @@ class BM25(Retrieval):
         corpus_dict = {key : value for key, value in top_k_sorted_result}
         return corpus_dict
     
-    # Write another BM25 using Bm25 retriever instead
+   
     
 
 

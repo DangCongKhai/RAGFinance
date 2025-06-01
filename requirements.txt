@@ -11,3 +11,4 @@ ipykernel
 faiss-cpu==1.10.0
 rank_bm25
 sentence-transformers
+pandas
