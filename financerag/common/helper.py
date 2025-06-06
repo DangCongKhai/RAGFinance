@@ -1,15 +1,22 @@
 import logging 
 from time import time
 from functools import wraps
-
+import pandas as pd
+from typing import Dict, List, Union
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 file_handler = logging.FileHandler(filename='process.log')
-formatter = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
+formatter = logging.Formatter("%(asctime)s :%(message)s", datefmt = '%d/%m/%Y %I:%M:%S %p')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
+__all__ = [
+    'timer', 
+    'get_query_and_retrieved_corpus_text',
+    'process_retrieval_df',
+    'get_final_result'
+]
 
 def timer(func):
     @wraps(func)
@@ -33,6 +40,67 @@ def timer(func):
 
 
 
+
+def get_query_and_retrieved_corpus_text(queries : Dict[str, str], corpus : Dict[str, str], retrieved_result : Dict[str, Dict[str, float]], n_query : int = 2):
+    """Print out query and their retrieved corpus
+
+    Args:
+        queries (Dict[str, str]): _description_
+        corpus (Dict[str, str]): _description_
+        retrieved_result (Dict[str, Dict[str, float]]): _description_
+        n_query (int, optional): _description_. Defaults to 2.
+    """
+    for i, (query_id, docs) in enumerate(retrieved_result.items()):
+        if (i == n_query): break
+        query = queries[query_id]
+        print(f"Query : {query}")
+        print("Retrieve documents: ")
+        for rank, corpus_id in enumerate(docs):
+            doc = corpus[corpus_id]
+            print(f"Top {rank+1}: \n {doc}")
+        print('*' * 100)
+
+
+    
+def load_query(dataset_name : str, new_path_to_query = None) -> Dict[str, str]:
+    query_df = pd.read_json(f"../../finance_dataset/{dataset_name.lower()}_queries.jsonl/queries.jsonl", lines = True)
+    # Convert into Dict[str, str]
+    query_dict = {row['_id'] : row['text'] for i, row in query_df.iterrows()}
+    return query_dict
+
+    
+def load_corpus(dataset_name : str, new_path_to_corpus = None) -> Dict[str, str]:
+    corpus_df = pd.read_json(f"finance_dataset/{dataset_name.lower()}_corpus.jsonl/corpus.jsonl", lines = True)
+    # Convert into Dict[str, str]
+    corpus_dict = {row['_id'] : row['text'] for i, row in corpus_df.iterrows()}
+    return corpus_dict
+
+def process_retrieval_df(result : pd.DataFrame) -> Dict[str, Dict[str, float]]:
+    retrieved_result : Dict[str, Dict[str, float]] = {}
+    for i, row in result.iterrows():
+        query_id, corpus_id = row['query_id'], row['corpus_id']
+        if query_id not in retrieved_result:
+            retrieved_result[query_id] = {}
+        retrieved_result[query_id][corpus_id] = 1.0
+    return retrieved_result
+
+
+def get_final_result(dataset_names : List[str], method_name : str):
+    """This function is used to collect final results for all task with a given method
+
+    Args:
+        task_names (List[str]): a list containing all task names
+        method_name (str): method for the result you are retrieving
+
+    Returns:
+        final_result [pd.DataFrame] : a dataframe containing retrieved results for all tasks
+    """
+    final_result = pd.DataFrame(columns = ['query_id', 'corpus_id'])
+    for dataset_name in dataset_names:
+        df = pd.read_csv(f"financerag_result/{method_name}/{dataset_name.lower()}_result.csv")
+        final_result = pd.concat([final_result, df], axis = 0)
+
+    return final_result
 
 
 

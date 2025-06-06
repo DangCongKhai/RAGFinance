@@ -5,3 +5,4 @@ from .FinQABenchTask import FinQABenchTask
 from .FinQATask import FinQATask
 from .MultiHeirttTask import MultiHeirttTask
 from .TATQATask import TATQATask
+from .BaseTask import BaseTask

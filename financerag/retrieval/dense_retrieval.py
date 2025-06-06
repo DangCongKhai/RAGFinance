@@ -45,7 +45,7 @@ class DenseRetrieval(Retrieval):
             retrieved_docs_with_score = self.vector_store.similarity_search_with_score(query = query, k = top_k, filter = {'dataset_name' : self.dataset_name})
             docs_dict = {}
             for doc, score in retrieved_docs_with_score:
-                if (len(docs_dict.keys()) == 10): 
+                if (len(docs_dict.keys()) == top_k): 
                     break
                 if doc.metadata['id'] not in docs_dict:
                     docs_dict[doc.metadata['id']] = score.item()

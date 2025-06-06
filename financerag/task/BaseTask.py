@@ -11,12 +11,16 @@ class BaseTask:
         self.corpus : Dict[str, str] = None
         self.retrieved_result : Dict[str, Dict[str, float]] = None
 
-    def load(self):
+    def load(self, corpus_path : str = None, query_path : str = None):
         """This function is used to load the query and corpus of the corresponding dataset name
+
+        Args:
+            corpus_path (str, optional): Root path to corpus. Defaults to None.
+            query_path (str, optional): Root path to query. Defaults to None.
         """
         dataset_name = self.metadata.dataset_name
         finance_loader = FinanceDataLoader(dataset_name = dataset_name)
-        self.queries, self.corpus = finance_loader.load()
+        self.queries, self.corpus = finance_loader.load(corpus_path, query_path)
 
 
     def retrieve(self,
@@ -37,7 +41,7 @@ class BaseTask:
         return self.retrieved_result
     
     @validate_call
-    def save_retrieved_results(self, retrieved_result : Dict[str, Dict[str, float]]):
+    def save_retrieved_results(self, retrieved_result : Dict[str, Dict[str, float]], method_name : str):
         
         """This function is used to save your retrieved results to csv file for final submission!
 
@@ -56,10 +60,13 @@ class BaseTask:
         
         final_result_df = pd.DataFrame(final_result_dict)
 
-        if not os.path.isdir("financerag_result"):
+        if not os.path.exists('financerag_result'):
             os.mkdir('financerag_result')
+        if not os.path.exists(f'financerag_result/{method_name}'):
+            os.mkdir(f'financerag_result/{method_name}')
         
-        save_path = f"./financerag_result/{self.metadata.dataset_name}_result.csv"
+        save_path = f"./financerag_result/{method_name}/{self.metadata.dataset_name}_result.csv"
         final_result_df.to_csv(save_path, index = False)
         print(f"Saved result successfully to {save_path}!")
 
+    
