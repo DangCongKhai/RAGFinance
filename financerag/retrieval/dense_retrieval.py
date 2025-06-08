@@ -1,4 +1,6 @@
+import re
 import os
+from time import sleep
 from ..common import Retrieval, timer
 from typing import Dict, List, Tuple
 from tqdm import tqdm
@@ -41,25 +43,30 @@ class DenseRetrieval(Retrieval):
         
         top_k = max(10, top_k)
         retrieved_results = {}
-        for query_id, query in tqdm(queries.items(), desc = "Retrieving result:"):
-            retrieved_docs_with_score = self.vector_store.similarity_search_with_score(query = query, k = top_k, filter = {'dataset_name' : self.dataset_name})
+        for i, (query_id, query) in enumerate(tqdm(queries.items(), desc = "Retrieving result")):
+            retrieved_docs_with_score = self.vector_store.similarity_search_with_score(query = query, k = int(top_k))
             docs_dict = {}
             for doc, score in retrieved_docs_with_score:
                 if (len(docs_dict.keys()) == top_k): 
                     break
                 if doc.metadata['id'] not in docs_dict:
                     docs_dict[doc.metadata['id']] = score.item()
+            
             # Here are things to consider:
             # 1. Averaging all top_k document score and sort it according to that score
             # 2. Rerank document
             retrieved_results[query_id] = docs_dict
+            # Prevent rate_limit
+            if i % 1400 == 0 and i!= 0:
+                sleep(60)
         
         return retrieved_results
         
     @timer
-    def load_corpus_for_searching_without_splitting(self, 
+    def load_corpus_without_splitting(self, 
                                 corpus : Dict[str, str],
-                                saved_index : bool = False):
+                                saved_index : bool = False,
+                                batch_size = 1400):
         """This function is used to load entire corpus text into the vector store of dense retrieval so that it can retrieve
         documents from a given query
 
@@ -72,9 +79,16 @@ class DenseRetrieval(Retrieval):
 
         corpus_documents = []
         
-        for id, text in tqdm(corpus.items(), desc='Loading document'):
+        for id, text in tqdm(corpus.items(), desc='Loading'):
             corpus_documents.append(Document(page_content = text, metadata = {'dataset_name' :  self.dataset_name, 'id' : id}))
-        self.vector_store.add_documents(corpus_documents)
+        
+        # Load in batch to prevent API limit
+        for i in tqdm(range(0, len(corpus_documents), batch_size), desc = 'Add to vectorDB'):
+            batch_documents = corpus_documents[i : i + batch_size]
+            self.vector_store.add_documents(batch_documents)
+            # Sleep 60s to reset rate limit
+            sleep(60)
+
         self._save_index(saved_index)
         
 
@@ -96,14 +110,24 @@ class DenseRetrieval(Retrieval):
     def load_corpus_with_splitting(self,
                                    text_splitter : TextSplitter,
                                    corpus : Dict[str, str],
-                                   saved_index = False):
+                                   saved_index = False,
+                                   batch_size = 1400):
         documents = []
         for corpus_id, text in tqdm(corpus.items(), desc = 'Loading document:'):
+            # Remove unnecessary space 
+            text = re.sub('\s+', repl = " ", string = text)
             # Split documents
             texts = text_splitter.split_text(text)
             split_documents = [Document(page_content = split_text, metadata = {'dataset_name' :  self.dataset_name, 'id' : corpus_id}) for split_text in texts]
             documents.extend(split_documents)
-        self.vector_store.add_documents(documents)
+        
+        # Load in batch to prevent API limit
+        for i in tqdm(range(0, len(documents), batch_size), desc = 'Add to vectorDB'):
+            batch_documents = documents[i : i + batch_size]
+            self.vector_store.add_documents(batch_documents, batch_size = 32)
+            # Sleep 60s to reset rate limit
+            
+
         self._save_index(saved_index)
 
 

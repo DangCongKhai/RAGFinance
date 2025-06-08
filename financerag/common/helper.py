@@ -32,9 +32,26 @@ def timer(func):
             query_len = len(queries)
             if top_k is None:
                 top_k = args[-1]
-            logger.info(f"Retrieval time for {query_len} queries, {top_k} docs/query= {round(total_time_taken, 4)}s")
-        else:
-            logger.info(f"Func '{measure_time.__name__}' - Time taken = {round(total_time_taken, 4)}s")
+            avg_time = total_time_taken / query_len
+            logger.info(f"Retrieval time for {query_len} queries, {top_k} docs/query = {round(avg_time, 4)}s")
+        elif 'load' in func.__name__:
+            corpus = kwargs.get('corpus', None)
+            if corpus is not None:
+                corpus_len = len(corpus)
+                avg_time = total_time_taken / corpus_len
+                logger.info(f"Loading {corpus_len} documents - Time taken for 1 doc = {avg_time}s")
+            else:
+                logger.info(f"Loading documents = {total_time_taken}s")
+        elif 'rerank' in func.__name__:
+            retrieved_result: Dict[str, Dict[str, float]] = kwargs.get('retrieved_result', None)
+            if retrieved_result is None:
+                retrieved_result = args[0]
+            if isinstance(retrieved_result, Dict):
+                query_len = len(retrieved_result)
+                doc_len = len(list(retrieved_result.values())[0])
+                avg_time = total_time_taken / query_len
+                logger.info(f"Reranking for {query_len} queries - Time taken for reranking {doc_len} docs/query = {avg_time}s")
+           
         return result
     return measure_time
 

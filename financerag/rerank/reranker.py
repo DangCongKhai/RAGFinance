@@ -2,6 +2,7 @@ from ..common import Reranker, timer
 from sentence_transformers import CrossEncoder
 from typing import Dict, List
 from pydantic import validate_call
+from tqdm import tqdm
 
 class CrossEncoderReranker(Reranker):
     def __init__(self, 
@@ -21,7 +22,7 @@ class CrossEncoderReranker(Reranker):
                top_k : int = 10,) -> Dict[str, Dict[str, float]] :
         
         final_result = {}
-        for query_id, doc_dict in retrieved_result.items():
+        for query_id, doc_dict in tqdm(retrieved_result.items(), desc = 'Reranking'):
             query = self.queries[query_id]
             idx_to_corpus_dict = {idx : corpus_id for idx, corpus_id in enumerate(doc_dict.keys())}
             documents = [self.corpus[corpus_id] for corpus_id in doc_dict.keys()]

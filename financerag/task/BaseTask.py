@@ -40,13 +40,14 @@ class BaseTask:
         self.retrieved_result = retriever.retrieve(queries = self.queries, corpus = self.corpus, top_k = top_k)
         return self.retrieved_result
     
-    @validate_call
+
     def save_retrieved_results(self, retrieved_result : Dict[str, Dict[str, float]], method_name : str):
         
         """This function is used to save your retrieved results to csv file for final submission!
 
         Arguments: 
             retrieved_result (Dict[str, Dict[str, float]]): a dictionary where each query id is map to the top-k most relevant documents with their relevance score!
+            method_name (str) : method you used for this task
         """
         
         final_result_dict = {
