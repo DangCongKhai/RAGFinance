@@ -34,7 +34,7 @@ def timer(func):
                 top_k = args[-1]
             avg_time = total_time_taken / query_len
             logger.info(f"Retrieval time for {query_len} queries, {top_k} docs/query = {round(avg_time, 4)}s")
-        elif 'load' in func.__name__:
+        elif 'load' or 'index' in func.__name__:
             corpus = kwargs.get('corpus', None)
             if corpus is not None:
                 corpus_len = len(corpus)
