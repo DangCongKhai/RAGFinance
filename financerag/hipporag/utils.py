@@ -1,7 +1,9 @@
-from typing import List, List
+from typing import List, Union
 from langchain_core.output_parsers import ListOutputParser
 from langchain_core.prompts import PromptTemplate
 import re
+import spacy
+from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
 
 class CustomizedListParser(ListOutputParser):
     def parse(self, text) -> List[List[List[str]]]:
@@ -11,6 +13,38 @@ class CustomizedListParser(ListOutputParser):
             extracted_text = re.findall(pattern, text)[0]
             return eval(extracted_text)
         return []
+    
+class NerExtractor:
+    def __init__(self, model_id : str = None):
+        self.model_id = model_id
+        if model_id is not None:
+            tokenizer = AutoTokenizer.from_pretrained(self.model_id)
+            model = AutoModelForTokenClassification.from_pretrained(self.model_id)
+            self.ner_extractor = pipeline(task = 'ner', model = model, tokenizer = tokenizer, aggregation_strategy = 'max')
+        else:
+            self.ner_extractor = spacy.load('en_core_web_md')
+    
+    def extract_entities(self, texts: List[str]) -> List[List[Union[str, None]]]:
+        """Extract entities from a list of text
+
+        Args:
+            texts (List[str]): A list containing texts to extract entities
+
+        Returns:
+            List[List[Union[str, None]]]: Entities for each text
+        """
+        if self.model_id is not None: # Logic for transformer
+            passages_entities = self.ner_extractor(texts)
+            entities = []
+            for passage in passages_entities:
+                entities.append([entity['word'] for entity in passage])
+        else:
+            entities = [list(map(str, self.ner_extractor(text).ents)) for text in texts]
+        return entities
+            
+                
+        
+    
     
 PROMPT_TEMPLATE = PromptTemplate.from_template(
     """

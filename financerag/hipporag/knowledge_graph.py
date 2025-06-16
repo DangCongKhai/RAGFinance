@@ -21,10 +21,10 @@ class KG:
     def add_edges(self, edges : List[List[str]]):
         vertices = set(self.graph.vs['name'])
         for triple in edges:
-            if (triple[0] not in vertices or triple[1] not in vertices): continue
+            if (triple[0] not in vertices or triple[2] not in vertices): continue
             edge_id = self.graph.get_eid(triple[0], triple[2], error = False)
             if edge_id == -1:
-                self.graph.add_edge(triple[0], triple[2])
+                self.graph.add_edge(triple[0], triple[2],)
 
     def run_personalized_page_rank(self, reset_vector = None, damping = 0.85, *args, **kwargs):
         personalized_page_rank = np.array(self.graph.personalized_pagerank(damping = damping, reset = reset_vector))

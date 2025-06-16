@@ -4,15 +4,14 @@ from tqdm import tqdm
 import logging
 
 from ..common import Retrieval, timer
-from .utils import PROMPT_TEMPLATE, CustomizedListParser
+from .utils import PROMPT_TEMPLATE, CustomizedListParser, NerExtractor
 from .knowledge_graph import KG
 
-
+from sentence_transformers import SentenceTransformer
 from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
 from langchain_core.vectorstores import VectorStore
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
-
 
 load_dotenv("../../.env")
 LLM = ChatGoogleGenerativeAI(model = "gemini-2.0-flash")
@@ -24,13 +23,13 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 class HippoRAG(Retrieval):
-    def __init__(self, retriever : VectorStore, model_id : str = "dslim/bert-base-NER"):
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
-        model = AutoModelForTokenClassification.from_pretrained(model_id)
-        self.ner_extractor = pipeline(task = 'ner', model = model, tokenizer = tokenizer, aggregation_strategy = 'max')
+    def __init__(self, retriever : VectorStore, model_id : str = None):
+        self.ner_extractor = NerExtractor(model_id = model_id)
         self.relations_extractor = PROMPT_TEMPLATE | LLM | CustomizedListParser()
         self.KG = KG()
         self.retriever = retriever
+        self.query_id_with_no_entities = set()
+        self.bi_encoder = SentenceTransformer("all-MiniLM-L6-v2")
 
     @timer
     def retrieve(self, queries : Dict[str, str], corpus : Dict[str, str], top_k = 10, *args, **kwargs) -> Dict[str, Dict[str, float]]:
@@ -40,7 +39,7 @@ class HippoRAG(Retrieval):
         for query_id, query in tqdm(queries.items(), desc = 'Retrieving'):
             retrieved_result[query_id] = {}
             # Extract query named entities
-            query_named_entities = [entity['word'] for entity in self.ner_extractor(query)]
+            query_named_entities = self.ner_extractor.extract_entities([query])[0]
             if query_named_entities:
                 # Determine query node using retriever
                 query_nodes = []
@@ -73,13 +72,14 @@ class HippoRAG(Retrieval):
 
             else: # No named entity was extracted, implement logic later
                 logger.info(f"Cannot extract named entities from query_id = {query_id}")
-                # Add random result temporarilily
+                self.query_id_with_no_entities.add(query_id)
+                # Add random result temporarilily as placeholder
                 for i, corpus_id in enumerate(corpus.keys()):
                     if (i == top_k): break
                     retrieved_result[query_id][corpus_id] = 1.0
         return retrieved_result
     @timer
-    def offline_indexing(self, corpus : Dict[str, str], batch_size = 512):
+    def offline_indexing(self, corpus : Dict[str, str], batch_size = 512, add_synonymy_relations : bool = True):
         """Performs offline indexing process to construct KG triples and matrix P used for online retrieval process
 
         Args:
@@ -117,24 +117,24 @@ class HippoRAG(Retrieval):
         # Add edges to graph
         for relations in relations_list:
             self.KG.add_edges(relations)
-        
+
+        if add_synonymy_relations:
+            self._add_synomymy_relations(nodes)
        
 
         
     def _extract_entities_and_relations(self, corpus : List[str]):
-        entities_raw_list: List[List[Dict[str, Union[str, float]]]] = self.ner_extractor(corpus)
+        entities_list: List[List[str]] = self.ner_extractor.extract_entities(corpus)
         message_list = []
-        entities_list = []
-        for i, entities in enumerate(entities_raw_list):
+
+        for i, entities in enumerate(entities_list):
             one_corpus_text = corpus[i]
-            named_entities = [entity['word'] for entity in entities]
-            entities_list.append(named_entities)
 
             one_corpus_message = f"""Paragraph
             ```
             {one_corpus_text}
             ```
-            Named_entities = {named_entities}
+            Named_entities = {entities}
             
             """
             message_list.append(one_corpus_message)
@@ -142,10 +142,24 @@ class HippoRAG(Retrieval):
         relations_list = self.relations_extractor.invoke({'message' : message_for_relations_extraction})
         return entities_list, relations_list
 
-    def _add_synomymy(self):
-        # Add synonymy edges to KG graph
-        pass
+    def _add_synomymy_relations(self, nodes: List[str], threshold = 0.8):
+        """Helper function for adding synomymy relations between closely related entities but not identical
 
+        Args:
+            threshold (float, optional): _description_. Defaults to 0.8.
+        """
+
+        embeddings = self.bi_encoder.encode(nodes)
+
+        # Calculate the embedding similarities
+        similarities = self.bi_encoder.similarity(embeddings, embeddings)
+        synonymy_edges = []
+        for i in tqdm(range(1, len(nodes)), desc = 'Adding synonymy relation'):
+            for j in range(0, i):
+                if (similarities[i][j] > threshold):
+                    synonymy_edges.append([nodes[i], 'is equivalent', nodes[j]])
+                    synonymy_edges.append([nodes[j], 'is equivalent', nodes[i]])
+        self.KG.add_edges(synonymy_edges)
 
 
         
