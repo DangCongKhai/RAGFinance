@@ -15,3 +15,6 @@ pandas
 optimum-quanto
 accelerate
 spacy
+igraph
+bitsandbytes
+langchain-pinecone
