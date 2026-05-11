@@ -4,6 +4,8 @@ from langchain_core.prompts import PromptTemplate
 import re
 import spacy
 from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
+from typing import Union
+
 
 class CustomizedListParser(ListOutputParser):
     def parse(self, text) -> List[List[List[str]]]:
@@ -15,7 +17,7 @@ class CustomizedListParser(ListOutputParser):
         return []
     
 class NerExtractor:
-    def __init__(self, model_id : str = None):
+    def __init__(self, model_id : Union[str, None] = None ):
         self.model_id = model_id
         if model_id is not None:
             tokenizer = AutoTokenizer.from_pretrained(self.model_id)
@@ -37,13 +39,13 @@ class NerExtractor:
             passages_entities = self.ner_extractor(texts)
             entities = []
             for passage in passages_entities:
-                entities.append([entity['word'] for entity in passage])
+                entities.append(list(set(entity['word'] for entity in passage)))
         else:
-            entities = [list(map(str, self.ner_extractor(text).ents)) for text in texts]
+            entities = [list(set(map(str, self.ner_extractor(text).ents))) for text in texts]
         return entities
             
                 
-        
+      
     
     
 PROMPT_TEMPLATE = PromptTemplate.from_template(

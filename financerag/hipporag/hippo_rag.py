@@ -14,7 +14,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 
 load_dotenv("../../.env")
-LLM = ChatGoogleGenerativeAI(model = "gemini-2.0-flash")
+LLM = ChatGoogleGenerativeAI(model = "gemini-2.5-flash-lite-preview-06-17")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 file_handler = logging.FileHandler(filename='process.log')
@@ -38,7 +38,7 @@ class HippoRAG(Retrieval):
         retrieved_result = {}
         for query_id, query in tqdm(queries.items(), desc = 'Retrieving'):
             retrieved_result[query_id] = {}
-            # Extract query named entities
+            
             query_named_entities = self.ner_extractor.extract_entities([query])[0]
             if query_named_entities:
                 # Determine query node using retriever
@@ -139,7 +139,12 @@ class HippoRAG(Retrieval):
             """
             message_list.append(one_corpus_message)
         message_for_relations_extraction = " ".join(message_list)
-        relations_list = self.relations_extractor.invoke({'message' : message_for_relations_extraction})
+        try:
+            relations_list = self.relations_extractor.invoke({'message' : message_for_relations_extraction})
+        except Exception as e:
+            logger.error(e)
+            relations_list = self.relations_extractor.invoke({'message' : message_for_relations_extraction})
+            
         return entities_list, relations_list
 
     def _add_synomymy_relations(self, nodes: List[str], threshold = 0.8):
