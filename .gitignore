@@ -12,4 +12,6 @@ finance_corpus_summarized
 main.ipynb
 submission/
 .idea/
+.jupyter/
+.ipynb_checkpoints/
 
